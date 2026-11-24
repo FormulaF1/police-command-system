@@ -121,11 +121,7 @@ const INITIAL_CASES = [
 const StorageService = {
   getCases() {
     const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(INITIAL_CASES));
-      return [...INITIAL_CASES];
-    }
-    return JSON.parse(raw);
+    return raw ? JSON.parse(raw) : [];
   },
 
   saveCases(cases) {
@@ -155,7 +151,8 @@ const StorageService = {
     const prefix = `${thaiYear}-${mm}${dd}`;
     const todayCount = this.getCases().filter((c) => c.id.startsWith(prefix)).length + 1;
     return `${prefix}-${String(todayCount).padStart(3, '0')}`;
-  },
+  }
+};
 
   resetDemo() {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(INITIAL_CASES));
