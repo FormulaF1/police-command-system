@@ -532,6 +532,13 @@ const AppUI = {
         <h4>จุดกล้องวงจรปิด & หลักฐาน (${c.cctvs?.length || 0})</h4>
         ${cctvHtml}
       </div>
+      <div style="margin-top:16px;">
+        <button type="button" class="btn-primary btn-lg"
+          style="width:100%; justify-content:center; background:linear-gradient(135deg,#06c755,#059669);"
+          onclick="AppUI.copyCaseForLine('${c.id}', this)">
+          <i class="fa-brands fa-line"></i> คัดลอกข้อความแจ้งกลุ่ม LINE
+        </button>
+      </div>
     `;
 
     document.getElementById('case-modal').classList.remove('hidden');
@@ -545,6 +552,53 @@ const AppUI = {
       this.refreshTacticalMap();
     } catch (err) {
       alert('อัปเดตสถานะไม่สำเร็จ: ' + err.message);
+    }
+  },
+  async copyCaseForLine(caseId, btnEl) {
+    const c = StorageService.getCases().find((item) => item.id === caseId);
+    if (!c) return;
+
+    const cat = CATEGORIES[c.category]?.label || c.category;
+    const st = STATUSES[c.status]?.label || c.status;
+    const mapLink = (c.lat && c.lng)
+      ? `https://www.google.com/maps?q=${c.lat},${c.lng}`
+      : '-';
+
+    const text = [
+      `🚨 แจ้งเหตุรับแจ้งใหม่ (POLICE INTEL)`,
+      `━━━━━━━━━━━━━━━━━━`,
+      `📌 เลขคดี: ${c.id}`,
+      `📂 ประเภท: ${cat}`,
+      `🕒 วัน-เวลา: ${this.formatDateTime(c.datetime)}`,
+      `📍 สถานที่: ${c.locationName}`,
+      `🗺️ พิกัดแผนที่: ${mapLink}`,
+      `📝 พฤติการณ์: ${c.description}`,
+      `👤 ผู้ก่อเหตุ: ${c.suspects?.length || 0} ราย`,
+      `🎥 กล้อง CCTV: ${c.cctvs?.length || 0} จุด`,
+      `👮 ร้อยเวร/ผู้บันทึก: ${c.officer}`,
+      `📊 สถานะ: ${st}`,
+      `━━━━━━━━━━━━━━━━━━`,
+      `*(ดูภาพหลักฐานและรายละเอียดเต็มในระบบเว็บแอพ)*`
+    ].join('\n');
+
+    try {
+      await navigator.clipboard.writeText(text);
+      if (btnEl) {
+        const originalHtml = btnEl.innerHTML;
+        btnEl.innerHTML = '<i class="fa-solid fa-check"></i> คัดลอกแล้ว! นำไปวางใน LINE ได้เลย';
+        setTimeout(() => { btnEl.innerHTML = originalHtml; }, 2200);
+      } else {
+        alert('คัดลอกข้อความเรียบร้อยแล้ว นำไปวางในกลุ่ม LINE ได้เลยครับ');
+      }
+    } catch (err) {
+      // กรณีเบราว์เซอร์บล็อก Clipboard API ให้ใช้วิธีสำรอง
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+      alert('คัดลอกข้อความเรียบร้อยแล้ว นำไปวางในกลุ่ม LINE ได้เลยครับ');
     }
   },
 
@@ -563,8 +617,13 @@ const AppUI = {
           <div><strong>ข้อมูลเบื้องต้น:</strong> ผู้ก่อเหตุ ${c.suspects.length} ราย / กล้อง CCTV ${c.cctvs.length} จุด</div>
           <div style="font-size:0.74rem;color:#64748b;margin-top:4px;">* ไม่ส่งภาพผู้ต้องสงสัยลงกลุ่มเพื่อความปลอดภัยทางคดี</div>
         </div>
-        <div class="flex-footer">
-          <a href="#" class="flex-btn" onclick="AppUI.closeModal('line-modal'); AppUI.openCaseModal('${c.id}'); return false;">
+        <div class="flex-footer" style="display:flex; flex-direction:column; gap:8px;">
+          <button type="button" class="flex-btn" style="border:none; cursor:pointer;"
+            onclick="AppUI.copyCaseForLine('${c.id}', this)">
+            <i class="fa-regular fa-copy"></i> คัดลอกข้อความไปวางในกลุ่ม LINE
+          </button>
+          <a href="#" class="flex-btn" style="background:#334155;"
+            onclick="AppUI.closeModal('line-modal'); AppUI.openCaseModal('${c.id}'); return false;">
             เปิดดูแฟ้มคดีและพิกัดเต็ม
           </a>
         </div>
