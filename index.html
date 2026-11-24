@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Police Command & Intel System | ศูนย์รับแจ้งเหตุและวิเคราะห์คดี</title>
+
+  <!-- Google Fonts: Prompt -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+
+  <!-- Font Awesome 6 -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
+
+  <!-- Leaflet CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+
+  <!-- Custom CSS -->
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <div class="app-shell">
+    <!-- Sidebar (Desktop) -->
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-icon"><i class="fa-solid fa-shield-halved"></i></div>
+        <div>
+          <h1>COMMAND INTEL</h1>
+          <span>ศูนย์รับแจ้งเหตุและวิเคราะห์คดี</span>
+        </div>
+      </div>
+
+      <nav class="nav-menu">
+        <button class="nav-btn active" data-view="dashboard">
+          <i class="fa-solid fa-chart-pie"></i> แดชบอร์ดสถิติ
+        </button>
+        <button class="nav-btn" data-view="entry">
+          <i class="fa-solid fa-file-circle-plus"></i> บันทึกเหตุใหม่
+        </button>
+        <button class="nav-btn" data-view="map">
+          <i class="fa-solid fa-map-location-dot"></i> แผนที่ยุทธการ
+        </button>
+        <button class="nav-btn" data-view="registry">
+          <i class="fa-solid fa-folder-open"></i> ทะเบียนคดี
+        </button>
+      </nav>
+
+      <div class="sidebar-footer">
+        <div class="officer-badge">
+          <i class="fa-solid fa-user-shield"></i>
+          <div>
+            <strong>ร.ต.อ. สมชาย รักษาการ</strong>
+            <small>ร้อยเวรปฏิบัติการ (ออนไลน์)</small>
+          </div>
+        </div>
+        <button id="btn-reset-demo" class="btn-ghost-sm" title="รีเซ็ตข้อมูลจำลอง">
+          <i class="fa-solid fa-rotate-left"></i> รีเซ็ตข้อมูลตัวอย่าง
+        </button>
+      </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="main-content">
+      <!-- Top Header -->
+      <header class="topbar">
+        <div>
+          <h2 id="page-title">แดชบอร์ดสถิติและภาพรวมคดี</h2>
+          <p id="page-subtitle">ระบบวิเคราะห์ข้อมูลคดี จุดเสี่ยง และหลักฐานกล้องวงจรปิด</p>
+        </div>
+        <div class="topbar-actions">
+          <span class="live-pill"><span class="dot"></span> LIVE COMMAND</span>
+          <button class="btn-primary" onclick="AppUI.switchView('entry')">
+            <i class="fa-solid fa-plus"></i> รับแจ้งเหตุใหม่
+          </button>
+        </div>
+      </header>
+
+      <!-- VIEW 1: DASHBOARD -->
+      <section id="view-dashboard" class="view-section active">
+        <div class="kpi-grid">
+          <div class="glass-card kpi-card accent-blue">
+            <div class="kpi-icon"><i class="fa-solid fa-scale-balanced"></i></div>
+            <div>
+              <span class="kpi-label">คดีรับแจ้งทั้งหมด</span>
+              <h3 id="kpi-total">0</h3>
+            </div>
+          </div>
+          <div class="glass-card kpi-card accent-red">
+            <div class="kpi-icon"><i class="fa-solid fa-magnifying-glass-chart"></i></div>
+            <div>
+              <span class="kpi-label">กำลังสืบสวน / รับแจ้ง</span>
+              <h3 id="kpi-active">0</h3>
+            </div>
+          </div>
+          <div class="glass-card kpi-card accent-green">
+            <div class="kpi-icon"><i class="fa-solid fa-circle-check"></i></div>
+            <div>
+              <span class="kpi-label">ปิดคดีแล้ว</span>
+              <h3 id="kpi-closed">0</h3>
+            </div>
+          </div>
+          <div class="glass-card kpi-card accent-gold">
+            <div class="kpi-icon"><i class="fa-solid fa-video"></i></div>
+            <div>
+              <span class="kpi-label">จุดกล้อง CCTV ในระบบ</span>
+              <h3 id="kpi-cctv">0</h3>
+            </div>
+          </div>
+        </div>
+
+        <div class="charts-grid">
+          <div class="glass-card chart-box">
+            <div class="card-header">
+              <h3><i class="fa-solid fa-chart-doughnut"></i> สัดส่วนแยกตามประเภทคดี</h3>
+            </div>
+            <div class="chart-wrapper">
+              <canvas id="chart-category"></canvas>
+            </div>
+          </div>
+          <div class="glass-card chart-box">
+            <div class="card-header">
+              <h3><i class="fa-solid fa-clock"></i> ช่วงเวลาเกิดเหตุ (24 ชม.)</h3>
+            </div>
+            <div class="chart-wrapper">
+              <canvas id="chart-hourly"></canvas>
+            </div>
+          </div>
+        </div>
+
+        <div class="glass-card">
+          <div class="card-header">
+            <h3><i class="fa-solid fa-list-ul"></i> รายการรับแจ้งเหตุล่าสุด</h3>
+            <button class="btn-ghost-sm" onclick="AppUI.switchView('registry')">ดูทั้งหมด</button>
+          </div>
+          <div class="table-responsive">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>เลขคดี</th>
+                  <th>วัน-เวลา</th>
+                  <th>ประเภทคดี</th>
+                  <th>สถานที่เกิดเหตุ</th>
+                  <th>CCTV</th>
+                  <th>สถานะ</th>
+                  <th>จัดการ</th>
+                </tr>
+              </thead>
+              <tbody id="recent-cases-body"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- VIEW 2: INCIDENT ENTRY FORM -->
+      <section id="view-entry" class="view-section">
+        <form id="incident-form" class="form-layout">
+          <!-- ข้อมูลคดี -->
+          <div class="glass-card">
+            <div class="card-header">
+              <h3><i class="fa-solid fa-file-lines"></i> 1. ข้อมูลคดีเบื้องต้น</h3>
+            </div>
+            <div class="form-grid">
+              <div class="form-group">
+                <label>เลขรับแจ้ง (อัตโนมัติ)</label>
+                <input type="text" id="case-id" readonly />
+              </div>
+              <div class="form-group">
+                <label>วัน-เวลาที่เกิดเหตุ *</label>
+                <input type="datetime-local" id="case-datetime" required />
+              </div>
+              <div class="form-group">
+                <label>ประเภทคดี *</label>
+                <select id="case-category" required>
+                  <option value="theft">ลักทรัพย์ / ชิงทรัพย์</option>
+                  <option value="assault">ทะเลาะวิวาท / ทำร้ายร่างกาย</option>
+                  <option value="drugs">ยาเสพติด</option>
+                  <option value="traffic">อุบัติเหตุจราจร</option>
+                  <option value="cyber">ฉ้อโกง / อาชญากรรมออนไลน์</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label>สถานะคดี</label>
+                <select id="case-status">
+                  <option value="open">รับแจ้งเหตุใหม่</option>
+                  <option value="investigating">กำลังสืบสวน</option>
+                  <option value="closed">ปิดคดีแล้ว</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label>ร้อยเวร / ผู้บันทึก *</label>
+                <input type="text" id="case-officer" value="ร.ต.อ. สมชาย รักษาการ" required />
+              </div>
+              <div class="form-group">
+                <label>ชื่อสถานที่เกิดเหตุ *</label>
+                <input type="text" id="case-location-name" placeholder="เช่น หน้าตลาดสด, ปากซอยราชดำเนิน 4" required />
+              </div>
+            </div>
+            <div class="form-group mt-1">
+              <label>พฤติการณ์ / รายละเอียดเหตุการณ์ *</label>
+              <textarea id="case-desc" rows="3" placeholder="ระบุรายละเอียดเหตุการณ์เบื้องต้น ทรัพย์สินที่สูญหาย หรือพฤติการณ์..." required></textarea>
+            </div>
+          </div>
+
+          <!-- ปักหมุดแผนที่ -->
+          <div class="glass-card">
+            <div class="card-header">
+              <h3><i class="fa-solid fa-location-crosshairs"></i> 2. ปักหมุดพิกัดสถานที่เกิดเหตุ</h3>
+              <button type="button" id="btn-get-gps" class="btn-secondary-sm">
+                <i class="fa-solid fa-crosshairs"></i> ดึงพิกัด GPS ปัจจุบัน
+              </button>
+            </div>
+            <p class="helper-text">คลิกบนแผนที่เพื่อปักหมุดตำแหน่งที่เกิดเหตุ (ลากหมุดเพื่อปรับตำแหน่งได้)</p>
+            <div id="picker-map" class="map-box-sm"></div>
+            <div class="form-grid mt-1">
+              <div class="form-group">
+                <label>ละติจูด (Latitude)</label>
+                <input type="number" step="any" id="case-lat" required />
+              </div>
+              <div class="form-group">
+                <label>ลองจิจูด (Longitude)</label>
+                <input type="number" step="any" id="case-lng" required />
+              </div>
+            </div>
+          </div>
+
+          <!-- ข้อมูลผู้ก่อเหตุ -->
+          <div class="glass-card">
+            <div class="card-header">
+              <h3><i class="fa-solid fa-user-secret"></i> 3. ข้อมูลผู้ก่อเหตุ / ผู้ต้องสงสัย</h3>
+              <button type="button" id="btn-add-suspect" class="btn-secondary-sm">
+                <i class="fa-solid fa-plus"></i> เพิ่มผู้ก่อเหตุ
+              </button>
+            </div>
+            <div id="suspects-container" class="dynamic-list"></div>
+          </div>
+
+          <!-- ข้อมูลกล้อง CCTV และหลักฐาน -->
+          <div class="glass-card">
+            <div class="card-header">
+              <h3><i class="fa-solid fa-video"></i> 4. จุดกล้องวงจรปิด (CCTV) และภาพหลักฐาน</h3>
+              <button type="button" id="btn-add-cctv" class="btn-secondary-sm">
+                <i class="fa-solid fa-plus"></i> เพิ่มจุดกล้อง / หลักฐาน
+              </button>
+            </div>
+            <div id="cctv-container" class="dynamic-list"></div>
+          </div>
+
+          <!-- ปุ่มบันทึกและแจ้งเตือน LINE -->
+          <div class="glass-card submit-bar">
+            <label class="checkbox-label">
+              <input type="checkbox" id="send-line-notify" checked />
+              <span>ส่งแจ้งเตือนสรุปเคสเข้ากลุ่ม LINE (จำลอง Flex Message)</span>
+            </label>
+            <button type="submit" class="btn-primary btn-lg">
+              <i class="fa-solid fa-floppy-disk"></i> บันทึกข้อมูลคดี
+            </button>
+          </div>
+        </form>
+      </section>
+
+      <!-- VIEW 3: TACTICAL MAP -->
+      <section id="view-map" class="view-section">
+        <div class="glass-card map-toolbar">
+          <div class="filter-group">
+            <label>กรองประเภทคดี:</label>
+            <select id="map-filter-category">
+              <option value="all">ทุกประเภทคดี</option>
+              <option value="theft">ลักทรัพย์ / ชิงทรัพย์</option>
+              <option value="assault">ทะเลาะวิวาท / ทำร้ายร่างกาย</option>
+              <option value="drugs">ยาเสพติด</option>
+              <option value="traffic">อุบัติเหตุจราจร</option>
+              <option value="cyber">ฉ้อโกง / ออนไลน์</option>
+            </select>
+          </div>
+          <div class="toggle-group">
+            <label class="checkbox-label">
+              <input type="checkbox" id="toggle-incidents" checked />
+              <span><i class="fa-solid fa-location-dot text-red"></i> หมุดจุดเกิดเหตุ</span>
+            </label>
+            <label class="checkbox-label">
+              <input type="checkbox" id="toggle-cctv" checked />
+              <span><i class="fa-solid fa-video text-gold"></i> หมุดกล้อง CCTV</span>
+            </label>
+          </div>
+        </div>
+        <div class="glass-card p-0 overflow-hidden">
+          <div id="tactical-map" class="map-box-lg"></div>
+        </div>
+      </section>
+
+      <!-- VIEW 4: CASE REGISTRY -->
+      <section id="view-registry" class="view-section">
+        <div class="glass-card filter-bar">
+          <div class="search-box">
+            <i class="fa-solid fa-magnifying-glass"></i>
+            <input type="text" id="search-cases" placeholder="ค้นหาเลขคดี, สถานที่, ชื่อผู้ก่อเหตุ, ทะเบียนรถ..." />
+          </div>
+          <select id="filter-category">
+            <option value="all">ทุกประเภทคดี</option>
+            <option value="theft">ลักทรัพย์ / ชิงทรัพย์</option>
+            <option value="assault">ทะเลาะวิวาท / ทำร้ายร่างกาย</option>
+            <option value="drugs">ยาเสพติด</option>
+            <option value="traffic">อุบัติเหตุจราจร</option>
+            <option value="cyber">ฉ้อโกง / ออนไลน์</option>
+          </select>
+          <select id="filter-status">
+            <option value="all">ทุกสถานะ</option>
+            <option value="open">รับแจ้งเหตุใหม่</option>
+            <option value="investigating">กำลังสืบสวน</option>
+            <option value="closed">ปิดคดีแล้ว</option>
+          </select>
+        </div>
+        <div id="cases-list" class="cases-grid"></div>
+      </section>
+    </main>
+
+    <!-- Floating Bottom Nav (Mobile) -->
+    <nav class="mobile-nav">
+      <button class="nav-btn active" data-view="dashboard">
+        <i class="fa-solid fa-chart-pie"></i><span>แดชบอร์ด</span>
+      </button>
+      <button class="nav-btn" data-view="entry">
+        <i class="fa-solid fa-file-circle-plus"></i><span>แจ้งเหตุ</span>
+      </button>
+      <button class="nav-btn" data-view="map">
+        <i class="fa-solid fa-map-location-dot"></i><span>แผนที่</span>
+      </button>
+      <button class="nav-btn" data-view="registry">
+        <i class="fa-solid fa-folder-open"></i><span>ทะเบียนคดี</span>
+      </button>
+    </nav>
+  </div>
+
+  <!-- MODAL: CASE DETAILS -->
+  <div id="case-modal" class="modal-overlay hidden">
+    <div class="modal-card glass-card">
+      <div class="modal-header">
+        <div>
+          <span id="modal-case-id" class="badge badge-blue"></span>
+          <h3 id="modal-case-title">รายละเอียดแฟ้มคดี</h3>
+        </div>
+        <button class="btn-icon-close" onclick="AppUI.closeModal('case-modal')">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+      <div id="modal-case-body" class="modal-body"></div>
+    </div>
+  </div>
+
+  <!-- MODAL: LINE FLEX MESSAGE PREVIEW -->
+  <div id="line-modal" class="modal-overlay hidden">
+    <div class="modal-card line-modal-card">
+      <div class="modal-header">
+        <h3><i class="fa-brands fa-line" style="color:#06c755;"></i> จำลองแจ้งเตือนกลุ่ม LINE</h3>
+        <button class="btn-icon-close" onclick="AppUI.closeModal('line-modal')">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+      <div id="line-flex-preview" class="line-chat-bg"></div>
+    </div>
+  </div>
+
+  <!-- External Libraries -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+
+  <!-- Modular App Scripts -->
+  <script src="js/data-config.js"></script>
+  <script src="js/map-service.js"></script>
+  <script src="js/app-ui.js"></script>
+</body>
+</html>
