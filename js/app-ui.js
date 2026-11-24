@@ -309,12 +309,22 @@ const AppUI = {
     div.innerHTML = `
       <div class="dynamic-item-header">
         <span>จุดกล้อง CCTV / หลักฐาน #${idx}</span>
-        <button type="button" class="btn-danger-sm" onclick="this.closest('.dynamic-item').remove()">ลบ</button>
+        <div style="display:flex; gap:6px; flex-wrap:wrap;">
+          <button type="button" class="btn-secondary-sm btn-cctv-map">
+            <i class="fa-solid fa-map-pin"></i> ปักหมุดแผนที่
+          </button>
+          <button type="button" class="btn-secondary-sm btn-cctv-gps">
+            <i class="fa-solid fa-crosshairs"></i> GPS
+          </button>
+          <button type="button" class="btn-danger-sm" onclick="this.closest('.dynamic-item').remove()">ลบ</button>
+        </div>
       </div>
       <div class="form-grid">
         <div class="form-group"><label>ตำแหน่ง / แหล่งที่มาของกล้อง</label><input type="text" class="c-source" placeholder="เช่น กล้องเทศบาลเสาที่ 5, ร้านสะดวกซื้อ" /></div>
         <div class="form-group"><label>ผู้ครอบครอง / เบอร์ติดต่อ</label><input type="text" class="c-contact" placeholder="ชื่อผู้ดูแลและเบอร์โทร" /></div>
         <div class="form-group"><label>ช่วงเวลาในคลิป</label><input type="text" class="c-time" placeholder="เช่น 22:10 - 22:25 น." /></div>
+        <div class="form-group"><label>ละติจูดกล้อง (Lat)</label><input type="number" step="any" class="c-lat" placeholder="กดปักหมุดหรือกรอกเอง" /></div>
+        <div class="form-group"><label>ลองจิจูดกล้อง (Lng)</label><input type="number" step="any" class="c-lng" placeholder="กดปักหมุดหรือกรอกเอง" /></div>
         <div class="form-group">
           <label>ภาพแคปหน้าจอกล้อง / หลักฐาน</label>
           <input type="file" accept="image/*" class="c-photo-input" />
@@ -322,6 +332,29 @@ const AppUI = {
         </div>
       </div>
     `;
+
+    // ปุ่มเปิดแผนที่ปักหมุดกล้อง
+    div.querySelector('.btn-cctv-map').addEventListener('click', () => {
+      const startLat = div.querySelector('.c-lat').value || document.getElementById('case-lat').value;
+      const startLng = div.querySelector('.c-lng').value || document.getElementById('case-lng').value;
+      MapService.openCctvPicker(startLat, startLng, (pickedLat, pickedLng) => {
+        div.querySelector('.c-lat').value = pickedLat.toFixed(6);
+        div.querySelector('.c-lng').value = pickedLng.toFixed(6);
+      });
+    });
+
+    // ปุ่มดึง GPS ปัจจุบันสำหรับกล้อง
+    div.querySelector('.btn-cctv-gps').addEventListener('click', () => {
+      if (!navigator.geolocation) return alert('เบราว์เซอร์ไม่รองรับ GPS');
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          div.querySelector('.c-lat').value = pos.coords.latitude.toFixed(6);
+          div.querySelector('.c-lng').value = pos.coords.longitude.toFixed(6);
+        },
+        () => alert('ไม่สามารถดึงพิกัด GPS ได้ กรุณากดปุ่มปักหมุดแผนที่แทน')
+      );
+    });
+
     this.bindImagePreview(div.querySelector('.c-photo-input'), div.querySelector('.c-photo-preview'));
     container.appendChild(div);
   },
@@ -364,14 +397,18 @@ const AppUI = {
       .filter((s) => s.name || s.description || s.vehicle || s.photo);
 
     const cctvs = Array.from(document.querySelectorAll('.cctv-row'))
-      .map((row, idx) => ({
-        source: row.querySelector('.c-source').value.trim(),
-        contact: row.querySelector('.c-contact').value.trim(),
-        timeRange: row.querySelector('.c-time').value.trim(),
-        lat: lat + (idx + 1) * 0.0004,
-        lng: lng + (idx + 1) * 0.0004,
-        photo: row.querySelector('.c-photo-preview').src || ''
-      }))
+      .map((row, idx) => {
+        const cLat = parseFloat(row.querySelector('.c-lat').value);
+        const cLng = parseFloat(row.querySelector('.c-lng').value);
+        return {
+          source: row.querySelector('.c-source').value.trim(),
+          contact: row.querySelector('.c-contact').value.trim(),
+          timeRange: row.querySelector('.c-time').value.trim(),
+          lat: !isNaN(cLat) ? cLat : lat + (idx + 1) * 0.0004,
+          lng: !isNaN(cLng) ? cLng : lng + (idx + 1) * 0.0004,
+          photo: row.querySelector('.c-photo-preview').src || ''
+        };
+      })
       .filter((c) => c.source || c.contact || c.photo);
 
     const newCase = {
