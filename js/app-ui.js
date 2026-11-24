@@ -2,13 +2,16 @@ const AppUI = {
   categoryChart: null,
   hourlyChart: null,
 
-  init() {
-    this.bindNavigation();
-    this.bindFormEvents();
-    this.bindFilterEvents();
-    this.renderDashboard();
-    this.renderRegistry();
-    this.prepareNewForm();
+  async init() {
+  this.bindNavigation();
+  this.bindFormEvents();
+  this.bindFilterEvents();
+  await ApiService.fetchCases(); // ดึงข้อมูลล่าสุดจาก Google Sheets
+  this.renderDashboard();
+  this.renderRegistry();
+  this.prepareNewForm();
+  // ... โค้ดปุ่ม reset เดิม
+}
 
     document.getElementById('btn-reset-demo').addEventListener('click', () => {
       if (confirm('ต้องการรีเซ็ตข้อมูลกลับเป็นชุดตัวอย่างเริ่มต้นใช่หรือไม่?')) {
@@ -252,7 +255,7 @@ const AppUI = {
     });
   },
 
-  handleFormSubmit() {
+  async handleFormSubmit() {
     const lat = parseFloat(document.getElementById('case-lat').value);
     const lng = parseFloat(document.getElementById('case-lng').value);
 
@@ -289,6 +292,33 @@ const AppUI = {
       suspects,
       cctvs
     };
+
+    const sendLine = document.getElementById('send-line-notify').checked;
+    const submitBtn = document.querySelector('#incident-form button[type="submit"]');
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> กำลังบันทึกลง Google Sheets...';
+
+    try {
+      const savedCase = await ApiService.addCase(newCase);
+
+      document.getElementById('incident-form').reset();
+      this.prepareNewForm();
+      this.renderDashboard();
+      this.renderRegistry();
+
+      if (sendLine) {
+        this.showLineFlexPreview(savedCase);
+      } else {
+        alert(`บันทึกคดี ${savedCase.id} เรียบร้อยแล้ว`);
+        this.switchView('registry');
+      }
+    } catch (err) {
+      alert('บันทึกไม่สำเร็จ: ' + err.message);
+    } finally {
+      submitBtn.disabled = false;
+      submitBtn.innerHTML = '<i class="fa-solid fa-floppy-disk"></i> บันทึกข้อมูลคดี';
+    }
+  },
 
     StorageService.addCase(newCase);
     const sendLine = document.getElementById('send-line-notify').checked;
@@ -424,11 +454,15 @@ const AppUI = {
     document.getElementById('case-modal').classList.remove('hidden');
   },
 
-  changeCaseStatus(caseId, newStatus) {
-    StorageService.updateStatus(caseId, newStatus);
-    this.renderDashboard();
-    this.renderRegistry();
-    this.refreshTacticalMap();
+  async changeCaseStatus(caseId, newStatus) {
+    try {
+      await ApiService.updateStatus(caseId, newStatus);
+      this.renderDashboard();
+      this.renderRegistry();
+      this.refreshTacticalMap();
+    } catch (err) {
+      alert('อัปเดตสถานะไม่สำเร็จ: ' + err.message);
+    }
   },
 
   showLineFlexPreview(c) {
