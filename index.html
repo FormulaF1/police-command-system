@@ -391,6 +391,26 @@
       <div id="line-flex-preview" class="line-chat-bg"></div>
     </div>
   </div>
+  
+  <!-- MODAL: CCTV MAP PICKER -->
+  <div id="cctv-map-modal" class="modal-overlay hidden">
+    <div class="modal-card glass-card">
+      <div class="modal-header">
+        <h3><i class="fa-solid fa-video" style="color:var(--gold);"></i> ปักหมุดพิกัดกล้อง CCTV</h3>
+        <button class="btn-icon-close" onclick="AppUI.closeModal('cctv-map-modal')">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+      <p class="helper-text">คลิกบนแผนที่หรือลากหมุดสีเหลืองไปยังตำแหน่งที่ตั้งกล้องวงจรปิด</p>
+      <div id="cctv-picker-map" class="map-box-sm" style="height:340px;"></div>
+      <div style="margin-top:14px; display:flex; justify-content:flex-end; gap:10px;">
+        <button type="button" class="btn-ghost-sm" onclick="AppUI.closeModal('cctv-map-modal')">ยกเลิก</button>
+        <button type="button" id="btn-confirm-cctv-pin" class="btn-primary">
+          <i class="fa-solid fa-check"></i> ยืนยันพิกัดกล้อง
+        </button>
+      </div>
+    </div>
+  </div>
 
   <!-- External Libraries -->
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
