@@ -1,24 +1,113 @@
+const AUTH_SESSION_KEY = 'police_command_auth_user';
+
+const ROLE_LABELS = {
+  officer: 'ร้อยเวรปฏิบัติการ',
+  investigator: 'ชุดสืบสวน / สายตรวจ',
+  commander: 'ผู้บังคับบัญชา (ดูรายงาน)'
+};
+
 const AppUI = {
   categoryChart: null,
   hourlyChart: null,
+  currentUser: null,
+  eventsBound: false,
 
   async init() {
-    this.bindNavigation();
-    this.bindFormEvents();
-    this.bindFilterEvents();
-    await ApiService.fetchCases(); // ดึงข้อมูลล่าสุดจาก Google Sheets
-    this.renderDashboard();
-    this.renderRegistry();
-    this.prepareNewForm();
+    this.bindAuthEvents();
 
-    document.getElementById('btn-reset-demo').addEventListener('click', () => {
-      if (confirm('ต้องการรีเซ็ตข้อมูลกลับเป็นชุดตัวอย่างเริ่มต้นใช่หรือไม่?')) {
-        StorageService.resetDemo();
-        this.renderDashboard();
-        this.renderRegistry();
-        this.refreshTacticalMap();
+    // ตรวจสอบว่ามีสถานะล็อกอินค้างอยู่ใน Session นี้หรือไม่
+    const saved = sessionStorage.getItem(AUTH_SESSION_KEY);
+    if (saved) {
+      try {
+        await this.enterApp(JSON.parse(saved));
+        return;
+      } catch (e) {
+        sessionStorage.removeItem(AUTH_SESSION_KEY);
+      }
+    }
+    this.showLoginOverlay();
+  },
+
+  // --- AUTH & ROLE MANAGEMENT ---
+  bindAuthEvents() {
+    document.getElementById('login-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const username = document.getElementById('login-username').value.trim();
+      const password = document.getElementById('login-password').value.trim();
+      const errBox = document.getElementById('login-error');
+      const btn = document.getElementById('btn-login-submit');
+
+      errBox.classList.add('hidden');
+      btn.disabled = true;
+      btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> กำลังตรวจสอบสิทธิ์...';
+
+      try {
+        const user = await ApiService.login(username, password);
+        sessionStorage.setItem(AUTH_SESSION_KEY, JSON.stringify(user));
+        await this.enterApp(user);
+      } catch (err) {
+        errBox.textContent = err.message;
+        errBox.classList.remove('hidden');
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fa-solid fa-right-to-bracket"></i> เข้าสู่ระบบ';
       }
     });
+
+    const handleLogout = () => {
+      if (confirm('ต้องการออกจากระบบใช่หรือไม่?')) {
+        sessionStorage.removeItem(AUTH_SESSION_KEY);
+        this.currentUser = null;
+        document.getElementById('login-password').value = '';
+        this.showLoginOverlay();
+      }
+    };
+
+    document.getElementById('btn-logout').addEventListener('click', handleLogout);
+    const mobileLogout = document.getElementById('btn-logout-mobile');
+    if (mobileLogout) mobileLogout.addEventListener('click', handleLogout);
+  },
+
+  showLoginOverlay() {
+    document.getElementById('login-overlay').classList.remove('hidden');
+  },
+
+  async enterApp(user) {
+    this.currentUser = user;
+    document.getElementById('login-overlay').classList.add('hidden');
+
+    // แสดงชื่อและตำแหน่งมุมล่างซ้าย
+    document.getElementById('officer-name').textContent = user.fullname;
+    document.getElementById('officer-role-text').textContent =
+      `${ROLE_LABELS[user.role] || user.role} (ออนไลน์)`;
+
+    // จัดการสิทธิ์ตาม Role (ผู้บังคับบัญชาซ่อนเมนูบันทึกเหตุใหม่)
+    const isCommander = user.role === 'commander';
+    document.querySelectorAll('.nav-btn[data-view="entry"]').forEach((el) => {
+      el.style.display = isCommander ? 'none' : '';
+    });
+    const topbarEntryBtn = document.getElementById('btn-topbar-entry');
+    if (topbarEntryBtn) topbarEntryBtn.style.display = isCommander ? 'none' : '';
+
+    if (!this.eventsBound) {
+      this.bindNavigation();
+      this.bindFormEvents();
+      this.bindFilterEvents();
+
+      document.getElementById('btn-reset-demo').addEventListener('click', () => {
+        if (confirm('ต้องการรีเซ็ตข้อมูลกลับเป็นชุดตัวอย่างเริ่มต้นใช่หรือไม่?')) {
+          StorageService.resetDemo();
+          this.renderDashboard();
+          this.renderRegistry();
+          this.refreshTacticalMap();
+        }
+      });
+      this.eventsBound = true;
+    }
+
+    await ApiService.fetchCases();
+    this.switchView('dashboard');
+    this.prepareNewForm();
   },
 
   bindNavigation() {
@@ -28,6 +117,11 @@ const AppUI = {
   },
 
   switchView(viewName) {
+    // ป้องกันผู้บังคับบัญชากดเข้าหน้าบันทึกเหตุ
+    if (viewName === 'entry' && this.currentUser?.role === 'commander') {
+      return;
+    }
+
     document.querySelectorAll('.view-section').forEach((sec) => sec.classList.remove('active'));
     document.getElementById(`view-${viewName}`).classList.add('active');
 
@@ -152,6 +246,11 @@ const AppUI = {
     const now = new Date();
     now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
     document.getElementById('case-datetime').value = now.toISOString().slice(0, 16);
+
+    // ใส่ชื่อเจ้าหน้าที่ที่ล็อกอินลงช่องผู้บันทึกอัตโนมัติ
+    if (this.currentUser) {
+      document.getElementById('case-officer').value = this.currentUser.fullname;
+    }
 
     document.getElementById('suspects-container').innerHTML = '';
     document.getElementById('cctv-container').innerHTML = '';
@@ -403,6 +502,14 @@ const AppUI = {
         `).join('')
       : '<small>ยังไม่มีข้อมูลกล้องวงจรปิด</small>';
 
+    const statusControl = this.currentUser?.role === 'commander'
+      ? `<span class="badge ${STATUSES[c.status]?.badge || 'badge-blue'}">${STATUSES[c.status]?.label || c.status}</span>`
+      : `<select id="modal-status-select" onchange="AppUI.changeCaseStatus('${c.id}', this.value)">
+          <option value="open" ${c.status === 'open' ? 'selected' : ''}>รับแจ้งเหตุใหม่</option>
+          <option value="investigating" ${c.status === 'investigating' ? 'selected' : ''}>กำลังสืบสวน</option>
+          <option value="closed" ${c.status === 'closed' ? 'selected' : ''}>ปิดคดีแล้ว</option>
+        </select>`;
+
     document.getElementById('modal-case-body').innerHTML = `
       <div class="detail-block">
         <h4>ข้อมูลเหตุการณ์และการปรับสถานะ</h4>
@@ -413,12 +520,8 @@ const AppUI = {
           <span>พิกัด GPS: ${c.lat}, ${c.lng}</span>
         </div>
         <div style="margin-top:12px;display:flex;align-items:center;gap:10px;">
-          <label style="font-size:0.84rem;">อัปเดตสถานะคดี:</label>
-          <select id="modal-status-select" onchange="AppUI.changeCaseStatus('${c.id}', this.value)">
-            <option value="open" ${c.status === 'open' ? 'selected' : ''}>รับแจ้งเหตุใหม่</option>
-            <option value="investigating" ${c.status === 'investigating' ? 'selected' : ''}>กำลังสืบสวน</option>
-            <option value="closed" ${c.status === 'closed' ? 'selected' : ''}>ปิดคดีแล้ว</option>
-          </select>
+          <label style="font-size:0.84rem;">สถานะคดี:</label>
+          ${statusControl}
         </div>
       </div>
       <div class="detail-block">
