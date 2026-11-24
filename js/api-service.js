@@ -4,7 +4,21 @@ const ApiService = {
   isConfigured() {
     return GAS_WEB_APP_URL && GAS_WEB_APP_URL.startsWith('https://script.google.com/');
   },
-
+async login(username, password) {
+    if (!this.isConfigured()) {
+      throw new Error('ยังไม่ได้ตั้งค่า GAS_WEB_APP_URL');
+    }
+    const res = await fetch(GAS_WEB_APP_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({ action: 'login', username, password })
+    });
+    const json = await res.json();
+    if (json.status !== 'success') {
+      throw new Error(json.message || 'ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง');
+    }
+    return json.data; // คืนค่า { username, fullname, role }
+  },
   async fetchCases() {
     if (!this.isConfigured()) {
       return StorageService.getCases();
