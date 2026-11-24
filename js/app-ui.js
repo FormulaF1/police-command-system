@@ -3,15 +3,13 @@ const AppUI = {
   hourlyChart: null,
 
   async init() {
-  this.bindNavigation();
-  this.bindFormEvents();
-  this.bindFilterEvents();
-  await ApiService.fetchCases(); // ดึงข้อมูลล่าสุดจาก Google Sheets
-  this.renderDashboard();
-  this.renderRegistry();
-  this.prepareNewForm();
-  // ... โค้ดปุ่ม reset เดิม
-}
+    this.bindNavigation();
+    this.bindFormEvents();
+    this.bindFilterEvents();
+    await ApiService.fetchCases(); // ดึงข้อมูลล่าสุดจาก Google Sheets
+    this.renderDashboard();
+    this.renderRegistry();
+    this.prepareNewForm();
 
     document.getElementById('btn-reset-demo').addEventListener('click', () => {
       if (confirm('ต้องการรีเซ็ตข้อมูลกลับเป็นชุดตัวอย่างเริ่มต้นใช่หรือไม่?')) {
@@ -96,7 +94,6 @@ const AppUI = {
       }
     });
 
-    // ช่วงเวลา 6 บล็อก (ทุก 4 ชม.)
     const buckets = ['00-04 น.', '04-08 น.', '08-12 น.', '12-16 น.', '16-20 น.', '20-24 น.'];
     const bucketCounts = [0, 0, 0, 0, 0, 0];
     cases.forEach((c) => {
@@ -236,7 +233,6 @@ const AppUI = {
       if (!file) return;
       const reader = new FileReader();
       reader.onload = (ev) => {
-        // ย่อขนาดภาพก่อนเก็บลง LocalStorage เพื่อไม่ให้พื้นที่เต็ม
         const img = new Image();
         img.onload = () => {
           const canvas = document.createElement('canvas');
@@ -317,22 +313,6 @@ const AppUI = {
     } finally {
       submitBtn.disabled = false;
       submitBtn.innerHTML = '<i class="fa-solid fa-floppy-disk"></i> บันทึกข้อมูลคดี';
-    }
-  },
-
-    StorageService.addCase(newCase);
-    const sendLine = document.getElementById('send-line-notify').checked;
-
-    document.getElementById('incident-form').reset();
-    this.prepareNewForm();
-    this.renderDashboard();
-    this.renderRegistry();
-
-    if (sendLine) {
-      this.showLineFlexPreview(newCase);
-    } else {
-      alert(`บันทึกคดี ${newCase.id} เรียบร้อยแล้ว`);
-      this.switchView('registry');
     }
   },
 
