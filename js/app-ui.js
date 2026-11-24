@@ -93,15 +93,6 @@ const AppUI = {
       this.bindNavigation();
       this.bindFormEvents();
       this.bindFilterEvents();
-
-      document.getElementById('btn-reset-demo').addEventListener('click', () => {
-        if (confirm('ต้องการรีเซ็ตข้อมูลกลับเป็นชุดตัวอย่างเริ่มต้นใช่หรือไม่?')) {
-          StorageService.resetDemo();
-          this.renderDashboard();
-          this.renderRegistry();
-          this.refreshTacticalMap();
-        }
-      });
       this.eventsBound = true;
     }
 
